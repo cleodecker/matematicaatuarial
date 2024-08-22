@@ -1,0 +1,225 @@
+---
+title: "Matemática Atuarial II"
+subtitle: "Tarefa 2 - Reservas Matemáticas Retrospectivas"
+author: "Cleo Decker Anacleto & Brenda Morais de Almeida"
+date: "`r Sys.Date()`"
+output:
+  word_document: 
+    toc: yes
+  pdf_document:
+    toc: yes
+  html_document: 
+    highlight: zenburn
+    theme: paper
+    number_sections: false
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    df_print: default
+---
+
+```{css, echo=FALSE}
+.page-break {
+  page-break-before: always;
+  width: 100%;
+}
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Procedimentos Preliminares
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())               # limpa os objetos da ultima execução
+options(scipen = 9999,      # inibe exibição de resultaos em notação científica
+        digits = 6,         # limita o número de digitos das saídas do programa
+        max.print = 20)     # limita o tamanho da saída do programa
+
+library(lifecontingencies)  # pacote com operações financeiras e atuariais
+library(magrittr)           # pacote com operadores semânticos %>%, %$%
+library(kableExtra)         # pacote para formatar tabelas
+library(readxl)             # pacote para ler e manipular arquivos xlsx
+```
+
+
+# Tábuas Biométricas
+::: {style="text-align: justify;"}
+Considerando a tábua BR-EMS 2021mt-v.2021 feminina e masculina e i = 5,5% a.a, calcule:
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+setwd("C:/Users/cleod/OneDrive/Documentos/Documentos/Estudos/Ciências Atuariais/Matemática Atuarial II")
+
+tabuas <- read_excel('Tábuas.xlsx')
+
+tabua_mas <- tabuas[, c("Idade", "BR-EMSmt-v.2021-m")]
+names(tabua_mas) <- c("x", "qx")
+tabua_fem <- tabuas[, c("Idade", "BR-EMSmt-v.2021-f")]
+names(tabua_fem) <- c("y", "qy")
+```
+
+```{r}
+tabua_mas <- probs2lifetable(probs = tabua_mas$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-m')
+tabua_mas <- new('actuarialtable', x = tabua_mas@x, lx = tabua_mas@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-m')
+print(tabua_mas)
+
+tabua_fem <- probs2lifetable(probs = tabua_fem$qy, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-f')
+tabua_fem <- new('actuarialtable', x = tabua_fem@x, lx = tabua_fem@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-f')
+print(tabua_fem)
+```
+
+# Questão 1
+::: {style="text-align: justify;"}
+Um homem de 45 anos contrata um seguro de morte vitalício que paga ao final do ano de morte R$ 100.000,00 e pago com prêmios anuais antecipados e imediatos por um período de 20 anos. Calcule o prêmio a pagar anualmente?
+:::
+
+```{r}
+premio1 <- 100000 * Axn(tabua_mas, x = 45) / axn(tabua_mas, x = 45, n = 20, payment = 'advance')
+premio11 <- format(premio1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+O cálculo do prêmio é obtido por meio da expressão:
+
+$$  P_{45} = 100.000 \cdot \frac{A_{45}}{ä_{45:\overline{20|}}} $$
+
+**O valor do prêmio a ser pago anualmente pelo segurado deverá ser de R$ `r premio11`.**
+:::
+
+# Questão 2
+::: {style="text-align: justify;"}
+Conforme o exercício 1 calcule a reserva prospectiva no final do 10º ano da apólice?
+:::
+
+```{r}
+reserva2 <- 100000 * Axn(tabua_mas, x = 55) - premio1 * axn(tabua_mas, x = 55, n = 10, payment = 'advance')
+reserva2 <- format(reserva2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+**Resposta:**
+
+O cálculo da reserva prospectiva é dado pela expressão:
+
+$$  {}_{10}V_{45} = 100.000 \cdot A_{55} - P_{45} \cdot ä_{55:\overline{10|}} $$
+
+**A Reserva Matemática no 10º ano de vigência da apólice deverá ser de R$ `r reserva2`.**
+
+# Questão 3
+::: {style="text-align: justify;"}
+Conforme o exercício 2 calcule a reserva retrospectiva no final do 20º ano da apólice?
+:::
+
+```{r}
+reserva3 <- (premio1 * axn(tabua_mas, x = 45, n = 20, payment = 'advance') - 100000 * Axn(tabua_mas, x = 45, n = 20)) / Exn(tabua_mas, x = 45, n = 20)
+reserva3 <- format(reserva3, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+O cálculo da reserva retrospectiva é dado pela expressão:
+
+$$  {}_{20}V_{45} = \frac{P_{45} \cdot ä_{45:\overline{20|}} - 100.000 \cdot A^1_{45:\overline{20|}}}{{}_{20}E_{45}} $$
+
+**O valor da Reserva Matemática no 20º ano de vigência do contrato deverá ser de R$ `r reserva3`.**
+
+# Questão 4
+::: {style="text-align: justify;"}
+Um homem de 30 anos contrata uma renda antecipada vitalícia no valor R$ 5.000,00 p.a. e diferida de 15 anos, sendo paga através de prêmios anuais antecipados e imediatos por um período de 30 anos. Calcule o prêmio a pagar anualmente?
+:::
+
+```{r}
+premio4 <- 5000 * axn(tabua_mas, x = 30, m = 15, payment = 'advance') / axn(tabua_mas, x = 30, n = 30, payment = 'advance')
+premio44 <- format(premio4, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+O cálculo do prêmio é obtido por meio da expressão:
+
+$$  P_{30} = 5.000 \cdot \frac{{}_{15|}ä_{30}}{ä_{30:\overline{30|}}} $$
+
+**O valor do prêmio a ser pago anualmente pelo segurado deverá ser de R$ `r premio44`.**
+:::
+
+# Questão 5
+::: {style="text-align: justify;"}
+Conforme o exercício 4 calcule a reserva retrospectiva ao final do 5º ano da apólice?
+:::
+
+```{r}
+reserva5 <- (premio4 * axn(tabua_mas, x = 30, n = 5, payment = 'advance')) / Exn(tabua_mas, x = 30, n = 5)
+reserva5 <- format(reserva5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+O cálculo da reserva retrospectiva é dado pela expressão:
+
+$$  {}_{5}V_{30} = \frac{P_{30} \cdot ä_{30:\overline{5|}} - 5.000 \cdot 0}{{_{5}E_{30}}} $$
+
+**A Reserva Matemática no 5º ano de vigência da apólice deverá ser de R$ `r reserva5`.**
+
+# Questão 6
+::: {style="text-align: justify;"}
+Conforme o exercício 4 calcule a reserva prospectiva no final do 6º ano da apólice?
+:::
+
+```{r}
+reserva6 <- 5000 * axn(tabua_mas, x = 36, m = 9, payment = 'advance') - premio4 * axn(tabua_mas, x = 36, n = 24, payment = 'advance')
+reserva6 <- format(reserva6, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+O cálculo da reserva prospectiva é dado pela expressão:
+
+$$  {}_{6}V_{30} = 5.000 \cdot {}_{9|}ä_{36} - P_{30} \cdot ä_{36:\overline{24|}} $$
+
+**A Reserva Matemática no 6º ano de vigência da apólice deverá ser de R$ `r reserva6`.**
+
+
+# Questão 7
+::: {style="text-align: justify;"}
+Um homem de 40 anos contrata um seguro de morte temporário por 25 anos que paga ao final do ano de morte R$ 80.000,00 e pago com prêmios anuais antecipados e imediatos por um período de 10 anos. Calcule o prêmio a pagar?
+:::
+
+```{r}
+premio7 <- 80000 * Axn(tabua_mas, x = 40, n = 25) / axn(tabua_mas, x = 40, n = 10, payment = 'advance')
+premio77 <- format(premio7, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+O cálculo do prêmio é obtido por meio da expressão:
+
+$$  P_{40} = 80.000 \cdot \frac{A^{1}_{40:\overline{25|}}}{ä_{40:\overline{10|}}} $$
+
+**O valor do prêmio a ser pago anualmente pelo segurado deverá ser de R$ `r premio77`.**
+:::
+
+# Questão 8
+::: {style="text-align: justify;"}
+Conforme o exercício 7 calcule a reserva retrospectiva no final do 6º ano da apólice?
+:::
+
+```{r}
+reserva8 <- (premio7 * axn(tabua_mas, x = 40, n = 6, payment = 'advance') - 80000 * Axn(tabua_mas, x = 40, n = 6)) / Exn(tabua_mas, x = 40, n = 6)
+reserva8 <- format(reserva8, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+O cálculo da reserva retrospectiva é dado pela expressão:
+
+$$  {}_{6}V_{40} = \frac{P_{40} \cdot ä_{40:\overline{6|}} - 80.000 \cdot A^1_{40:\overline{6|}}}{{}_{6}E_{40}} $$
+
+**A Reserva Matemática no 6º ano de vigência da apólice deverá ser de R$ `r reserva8`.**

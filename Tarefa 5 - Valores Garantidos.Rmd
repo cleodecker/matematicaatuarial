@@ -1,0 +1,386 @@
+---
+title: "Matemática Atuarial II"
+subtitle: "Tarefa 5 - Valores Garantidos"
+author: "Cleo Decker Anacleto & Brenda Morais de Almeida"
+date: "`r Sys.Date()`"
+output:
+  word_document: 
+    toc: yes
+  pdf_document:
+    toc: yes
+  html_document: 
+    highlight: zenburn
+    theme: paper
+    number_sections: false
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    df_print: default
+always_allow_html: true
+knitr:
+  opts_chunk:
+    screenshot.force: FALSE
+---
+
+```{css, echo=FALSE}
+.page-break {
+  page-break-before: always;
+  width: 100%;
+}
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Procedimentos Preliminares
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())               # limpa os objetos da ultima execução
+options(scipen = 9999,      # inibe exibição de resultaos em notação científica
+        digits = 8,         # limita o número de digitos das saídas do programa
+        max.print = 20)     # limita o tamanho da saída do programa
+
+library(lifecontingencies)  # pacote com operações financeiras e atuariais
+library(magrittr)           # pacote com operadores semânticos %>%, %$%
+library(kableExtra)         # pacote para formatar tabelas
+library(readxl)             # pacote para ler e manipular arquivos xlsx
+library(ggplot2)            # pacote para elaboração de gráficos
+library(MortalityTables)    # pacote para manipulação de tábuas biométricas
+```
+
+# Tábuas Biométricas
+
+Considerando a tábua BR-EMS 2021mt-v.2021 feminina e masculina e i = 5,5% a.a.
+
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+setwd("C:/Users/cleod/OneDrive/Documentos/Documentos/Estudos/Ciências Atuariais/Matemática Atuarial II")
+
+tabuas <- read_excel('Tábuas.xlsx')
+
+tabua_mas <- tabuas[, c("Idade", "BR-EMSmt-v.2021-m")]
+names(tabua_mas) <- c("x", "qx")
+tabua_fem <- tabuas[, c("Idade", "BR-EMSmt-v.2021-f")]
+names(tabua_fem) <- c("y", "qy")
+```
+
+```{r}
+tabua_mas <- probs2lifetable(probs = tabua_mas$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-m')
+tabua_mas <- new('actuarialtable', x = tabua_mas@x, lx = tabua_mas@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-m')
+print(tabua_mas)
+
+tabua_fem <- probs2lifetable(probs = tabua_fem$qy, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-f')
+tabua_fem <- new('actuarialtable', x = tabua_fem@x, lx = tabua_fem@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-f')
+print(tabua_fem)
+
+tabuas <- c(tabua_mas, tabua_fem)
+```
+
+# Questão 1
+
+::: {style="text-align: justify;"}
+Um seguro foi contratado por um homem e uma mulher com as idades 30 e 28, respectivamente. O contrato tem as seguintes características: um diferimento de 20 anos, remunera 6.000 u.m. sob o status de falha vida conjunta. O prêmio referente este seguro será pago em 10 anos pelo casal. Determine o valor de resgate no décimo aniversário do contrato sendo ele 98% de sua reserva.
+:::
+
+```{r}
+# Cálculo do Prêmio Puro
+idades <- c(30,28)
+premio1 <- 6000 * Axyzn(tablesList = tabuas, x = idades, m = 20, status = 'joint') / axyzn(tablesList = tabuas, x = idades, n = 10, status = 'joint', payment = 'advance')
+
+# Cálculo da Reserva
+t_reserva <- 10
+idades_reserva <- idades + t_reserva
+reserva1 <- 6000 * Axyzn(tablesList = tabuas, x = idades_reserva, m = 10, status = 'joint')
+
+# Cálculo do Resgate
+resgate1 <- 0.98 * reserva1
+
+# Visualização dos Valores
+premio11 <- format(premio1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+reserva11 <- format(reserva1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+resgate11 <- format(resgate1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da questão utilizamos as seguintes expressões:
+
+Para o Prêmio Puro:
+
+$$  P_{30;28} = \frac{6.000 \cdot {}_{20|}A_{30;28}}{ä_{30;28:\overline{10|}}} $$
+Para a Reserva Matemática no 10º ano do contrato:
+
+$$  {}_{10}V_{30;28} = 6.000 \cdot {}_{10|}A_{40;38} $$
+Por fim, para o Valor do Resgate:
+
+$$ {}_{10}R_{30;28} = 0,98 \cdot {}_{10}V_{30;28}  $$
+**Assim, encontramos para a questão acima um prêmio puro anual de `r premio11` u.m., sendo que no 10º aniversário do contrato a reserva matemática será de `r reserva11` u.m., e o valor do resgate, constituindo 98% da reserva, será de `r resgate11` u.m.**
+:::
+
+# Questão 2
+
+::: {style="text-align: justify;"}
+Utilizando os dados da questão anterior, calcule a reserva de recorrência, determine o resgate se ele é igual a provisão de benefícios a conceder reduzida em 5%. Determine o benefício do seguro saldado associado a este valor de resgate.
+:::
+
+```{r}
+## Cálculo da Reserva Matemática no 11º aniversário, por recorrência
+v <- 1/1.055
+reserva2 <- reserva1 / v * pxyzt(tablesList = tabuas, x = idades_reserva, t = 1, status = 'joint') 
+
+# Cálculo do Resgate
+resgate2 <- 0.95 * reserva2
+
+# Cálculo do Seguro Saldado
+idades_reserva1 <- 1 + idades_reserva
+saldado2 <- resgate2 / Axyzn(tablesList = tabuas, x = idades_reserva1, m = 9, status = 'joint')
+
+# Visualização dos Valores
+reserva22 <- format(reserva2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+resgate22 <- format(resgate2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+saldado22 <- format(saldado2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da questão utilizamos as seguintes expressões:
+
+Para a Reserva de Recorrência no 11º ano de contrato:
+
+$$  {}_{11}V_{30;28} = \frac{{}_{10}V_{30;28}}{{}_{1}E_{40;38}} $$
+
+Por sua vez, para o valor do resgate:
+
+$$  {}_{11}R_{30;28} = 0,95 \cdot {}_{11}V_{30;28} $$
+Por fim, para o Valor do Seguro Saldado:
+
+$$ {}_{11}W_{30;28} = \frac{{}_{11}R_{30;28}}{{}_{9|}A_{41;39}} $$
+
+**Assim, encontramos para a questão acima uma reserva matemática no 11º ano de contrato de `r reserva22` u.m., que possibilita um resgate correspondente a `r resgate22` u.m., e um seguro saldado de `r saldado22` u.m.**
+:::
+
+# Questão 3
+
+::: {style="text-align: justify;"}
+Um seguro contratado por um casal sendo o homem com 42 anos e a mulher com 40 anos, sob o status de vida conjunta paga um benefício de 3.000 u.m. O prêmio é pago anualmente, de forma vitalícia e incide despesas de aquisição 2,5% do capital seguro. Calcule o valor resgate no terceiro ano de aniversário se ele é igual a 95% da sua provisão de benefícios a conceder. Determine o valor do benefício do seguro saldado associado a este valor de resgate.
+:::
+
+```{r}
+## Cálculo do Prêmio
+idades3 <- c(42,40)
+benef3 <- 3000
+desp_aquis <- 0.025
+premio3 <- (benef3 * Axyzn(tablesList = tabuas, x = idades3, status = 'joint') + benef3 * desp_aquis) / axyzn(tablesList = tabuas, x = idades3, status = 'last', payment = 'advance')
+
+# Cálculo da Reserva no 3º ano de contrato
+t_reserva3 <- 3
+idades_reserva3 <- idades3 + t_reserva3
+reserva3 <- benef3 * Axyzn(tablesList = tabuas, x = idades_reserva3, status = 'joint') - premio3 * axyzn(tablesList = tabuas, x = idades_reserva3, status = 'last', payment = 'advance')
+
+## Cálculo do Resgate no 3º ano de contrato
+resgate3 <- 0.95 * reserva3
+
+# Cálculo do Seguro Saldado
+saldado3 <- resgate3 / Axyzn(tablesList = tabuas, x = idades_reserva3, status = 'joint')
+
+# Visualização dos Valores
+reserva33 <- format(reserva3, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+resgate33 <- format(resgate3, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+saldado33 <- format(saldado3, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da questão utilizamos as seguintes expressões:
+
+O Prêmio foi expresso por:
+
+$$ P_{42;40} = \frac{3.000 \cdot A_{42;40} + 0.025 \cdot 3.000}{ä_{\overline{42;40}}}  $$
+
+Para a Reserva Matemática no 3º ano de contrato:
+
+$$  {}_{3}V_{42;40} = 3.000 \cdot A_{45;43} - P_{42;40} \cdot ä_{\overline{45;43}} $$
+
+Por sua vez, para o valor do resgate:
+
+$$  {}_{3}R_{42;40} = 0,95 \cdot {}_{3}V_{42;40} $$
+Por fim, para o Valor do Seguro Saldado:
+
+$$ {}_{3}W_{42;40} = \frac{{}_{3}R_{42;40}}{A_{45;43}} $$
+
+**Assim, encontramos para a questão acima um resgate no 3º ano de contrato de `r resgate33` u.m., correspondente a 95% do valor da reserva matemática, e um seguro saldado de `r saldado33` u.m.**
+:::
+
+# Questão 4
+
+::: {style="text-align: justify;"}
+O casal, sendo ele com 60 anos e ela com 55 anos, contratou um seguro temporário de 15 anos onde remunera 3.000 u.m. em caso de falha do status último sobrevivente. Os prêmios serão pagos em 15 anos de forma antecipada pelo casal. No sétimo ano de vigência do contrato o casal decide fazer um resgate de 60% de sua reserva, e com este valor contrata um novo seguro vitalício, encontre o valor do novo benefício. 
+:::
+
+```{r}
+## Cálculo do Prêmio
+benef4 <- 3000
+idades4 <- c(60,55)
+premio4 <- benef4 * Axyzn(tablesList = tabuas, x = idades4, n = 15, status = 'last') / axyzn(tablesList = tabuas, x = idades4, n = 15, status = 'joint', payment = 'advance')
+
+## Cálculo da Reserva no 7º ano de contrato
+t_reserva4 <- 7
+idades_reserva4 <- idades4 + t_reserva4
+reserva4 <- benef4 * Axyzn(tablesList = tabuas, x = idades_reserva4, n = 8, status = 'last') - premio4 * axyzn(tablesList = tabuas, x = idades_reserva4, n = 8, status = 'joint', payment = 'advance')
+
+## Cálculo do Resgate
+resgate4 <- 0.6 * reserva4
+
+## Cálculo do Seguro Saldado
+saldado4 <- resgate4 / Axyzn(tablesList = tabuas, x = idades_reserva4, status = 'last')
+
+## Visualização dos Valores
+reserva44 <- format(reserva4, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+resgate44 <- format(resgate4, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+saldado44 <- format(saldado4, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da questão utilizamos as seguintes expressões:
+
+O Prêmio foi expresso por:
+
+$$ P_{60;55} = \frac{3.000 \cdot A^1_{\overline{60;55}:\overline{15|}}}{ä_{60;55:\overline{15|}}} $$
+
+A Reserva no 7º ano de contrato expressa por:
+
+$$  {}_{7}V_{60;55} = 3.000 \cdot A^1_{\overline{67;62}:\overline{8|}} - P_{60;55} \cdot  ä_{67;62:\overline{8|}} $$
+
+O valor do resgate correspondendo a 60% da reserva:
+
+$$  {}_{7}R_{60;55} = 0,6 \cdot {}_{7}V_{60;55} $$
+Por fim, o valor do seguro saldado:
+
+$$ {}_{7}W_{60;55} = \frac{{}_{7}R_{60;55}}{A_{\overline{67;62}}} $$
+
+**O valor do novo benefício será de `r saldado44` u.m.**
+:::
+
+# Questão 5
+
+::: {style="text-align: justify;"}
+Calcule agora o valor do novo benefício saldado em t=3 sobre as seguintes condições: um casal de idade, sendo ele 60 e ela 55, contratam um seguro vitalício que remunera 20 u.m. em caso de morte de ambos os segurados. O prêmio será carregado em 1% de cada prêmio comercial, pago de forma anual no período de 5 anos. O resgate corresponde a sua provisão de benefícios a conceder reduzido em 10%. 
+:::
+
+```{r}
+## Cálculo do Prêmio
+idades5 <- c(60, 55)
+benef5 <- 20
+carreg5 <- 0.01
+premio5 <- benef5 * Axyzn(tablesList = tabuas, x = idades5, status = 'last') / (axyzn(tablesList = tabuas, x = idades5, n = 5, status = 'last', payment = 'advance') * (1 - carreg5))
+
+## Cálculo da Reserva no 3º ano de contrato
+t_reserva5 <- 3
+idades_reserva5 <- idades5 + t_reserva5
+reserva5 <- benef5 * Axyzn(tablesList = tabuas, x = idades_reserva5, status = 'last') + premio5 * axyzn(tablesList = tabuas, x = idades_reserva5, n = 2, status = 'last', payment = 'advance') * (carreg5 - 1)
+
+## Cálculo do Resgate
+resgate5 <- 0.9 * reserva5
+
+## Cálculo do Seguro Saldado
+saldado5 <- resgate5 / Axyzn(tablesList = tabuas, x = idades_reserva5, status = 'last')
+
+## Visualização dos Valores
+reserva55 <- format(reserva5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+resgate55 <- format(resgate5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+saldado55 <- format(saldado5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da questão utilizamos as seguintes expressões:
+
+O Prêmio foi expresso por:
+
+$$ P_{60;55} = \frac{20 \cdot A^1_{\overline{60;55}}}{ä_{\overline{60;55}:\overline{5|}} \cdot (1-0,01)}  $$
+
+A Reserva no 3º ano de contrato expressa por:
+
+$$  {}_{3}V_{60;55} = 20 \cdot A_{\overline{63;58}} + P_{60;55} \cdot  ä_{63;58:\overline{2|}} \cdot  (0,01-1) $$
+
+O valor do resgate correspondendo a 90% da reserva:
+
+$$  {}_{3}R_{60;55} = 0,9 \cdot {}_{3}V_{60;55} $$
+
+Por fim, o valor do seguro saldado:
+
+$$ {}_{3}W_{60;55} = \frac{{}_{3}R_{60;55}}{A_{\overline{63;58}}} $$
+
+**O valor do novo benefício será de `r saldado55` u.m.**
+:::
+
+# Questão 6
+
+::: {style="text-align: justify;"}
+Um seguro de 10 anos paga um benefício de 2.300 u.m. no momento exato de morte para um segurado com idade 30, após 6 anos de vigência do contrato o valor de resgate é de 500 u.m., onde o segurado retira 300 u.m. para uso pessoal. Com o restante o segurado contrata um seguro prolongado de s anos e encerra o contrato anterior. Determine o valor de s. Considere que o tempo de vida do segurado segue uma distribuição de Moivre com w = 100. O novo benefício será de 2.000 u.m.
+:::
+
+```{r}
+## Cálculo do s anos
+benef6 <- 2300
+resgate6 <- 500
+retirada6 <- 300
+benef6_novo <- 2000
+idade6 <- 30
+t_reserva6 <- 6
+w <- 100
+d <- 1.055
+A_xs <- ((resgate6 - retirada6) / benef6_novo)
+vs <- 1 - (w - idade6 - t_reserva6) * log(d) * A_xs
+s <- log(vs) / log(1/d)
+
+## Visualização dos valores
+vs6 <- format(vs, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 9)
+s6 <- format(s, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 9)
+```
+
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da questão utilizamos as seguintes expressões e desenvolvimentos:
+
+$$ 2.000 \cdot A^1_{36:\overline{s|}} = {}_{6}R_{30} - 300 $$
+
+$$ A^1_{36:\overline{s|}} = \frac{500 - 300}{2.000}  $$
+
+$$ A^1_{36:\overline{s|}} = 0,1  $$
+
+$$  A^1_{36:\overline{s|}} = \int_{0}^{s} \frac{1}{w-(x+t)} \cdot e^{-\delta t} dt $$
+
+$$  A^1_{36:\overline{s|}} = \frac{1}{100-36} \cdot \int_{0}^{s} e^{-\delta t} dt  $$
+
+$$ A^1_{36:\overline{s|}} = \frac{1}{64} \cdot \left| \frac{e^{-\delta t}}{-\delta} \right|_{0}^{s} $$
+
+$$ A^1_{36:\overline{s|}} = \frac{1}{64} \cdot \frac{1-e^{-\delta s}}{\delta}  $$
+
+$$ A^1_{36:\overline{s|}} = \frac{1}{64} \cdot \frac{1-v^{s}}{ln(1.055)} $$
+
+$$  1 - A^1_{36:\overline{s|}} \cdot 64 \cdot ln(1.055) = v^{s} $$
+
+$$  v^{s} = 0,65733909 $$
+$$  s \cdot ln(v) = ln(0,65733909) $$
+
+$$  s = \frac{ln(0,65733909)}{ln(v)} $$
+
+$$  s = \frac{ln(0,65733909)}{ln(\frac{1}{1,055})} $$
+
+$$  s = 7,83618346 $$
+
+**O valor de s para o novo seguro contratado será de `r s6` anos, que significa aproximadamente 7 anos, 10 meses e 1 dia.**
+:::

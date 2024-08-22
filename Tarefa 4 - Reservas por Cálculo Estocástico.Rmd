@@ -1,0 +1,411 @@
+---
+title: "Matemática Atuarial II"
+subtitle: "Tarefa 4 - Reservas por Cálculo Estocástico"
+author: "Cleo Decker Anacleto & Brenda Morais de Almeida"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    highlight: zenburn
+    theme: paper
+    number_sections: false
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    df_print: default
+  pdf_document:
+    toc: yes
+  word_document: 
+    toc: yes
+always_allow_html: true
+knitr:
+  opts_chunk:
+    screenshot.force: FALSE
+---
+
+```{css, echo=FALSE}
+.page-break {
+  page-break-before: always;
+  width: 100%;
+}
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Procedimentos Preliminares
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())               # limpa os objetos da ultima execução
+options(scipen = 9999,      # inibe exibição de resultaos em notação científica
+        digits = 6,         # limita o número de digitos das saídas do programa
+        max.print = 20)     # limita o tamanho da saída do programa
+
+library(lifecontingencies)  # pacote com operações financeiras e atuariais
+library(magrittr)           # pacote com operadores semânticos %>%, %$%
+library(kableExtra)         # pacote para formatar tabelas
+library(readxl)             # pacote para ler e manipular arquivos xlsx
+library(ggplot2)            # pacote para elaboração de gráficos
+library(MortalityTables)    # pacote para manipulação de tábuas biométricas
+```
+
+# Tábuas Biométricas
+
+::: {style="text-align: justify;"}
+Utilizaremos neste trabalho as tábuas BR-EMS 2021mt-v.2021 feminina e masculina, AT-2000 FEMALE e AT-2000 MALE, IBGE 2020 - MULHERES e IBGE 2020 - HOMENS e AT-83 FEMALE (IAM) E AT-83 MALE (IAM).
+A taxa de juros será i = 6% a.a.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+### Obtenção dos dados
+setwd("C:/Users/cleod/OneDrive/Documentos/Documentos/Estudos/Ciências Atuariais/Matemática Atuarial II")
+tabuas <- read_excel('Tábuas.xlsx')
+
+brems_mas <- tabuas[, c("Idade", "BR-EMSmt-v.2021-m")]
+names(brems_mas) <- c("x", "qx")
+brems_fem <- tabuas[, c("Idade", "BR-EMSmt-v.2021-f")]
+names(brems_fem) <- c("x", "qx")
+at2000_mas <- tabuas[, c("Idade", "AT-2000 MALE")]
+names(at2000_mas) <- c("x", "qx")
+at2000_fem <- tabuas[, c("Idade", "AT-2000 FEMALE")]
+names(at2000_fem) <- c("x", "qx")
+ibge2020_mas <- tabuas[,c("Idade", "IBGE 2020 - HOMENS")]
+names(ibge2020_mas) <- c("x", "qx")
+ibge2020_fem <- tabuas[,c("Idade", "IBGE 2020 - MULHERES")]
+names(ibge2020_fem) <- c("x", "qx")
+at_83_mas <- tabuas[,c("Idade", "AT-83 MALE (IAM)")]
+names(at_83_mas) <- c("x", "qx")
+at_83_fem <- tabuas[,c("Idade", "AT-83 FEMALE (IAM)")]
+names(at_83_fem) <- c("x", "qx")
+```
+
+```{r}
+### Construção das tábuas atuariais
+brems_mas <- probs2lifetable(probs = brems_mas$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-m')
+brems_mas <- new('actuarialtable', x = brems_mas@x, lx = brems_mas@lx, interest = 0.06, name = 'BR-EMSmt-v.2021-m')
+
+brems_fem <- probs2lifetable(probs = brems_fem$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-f')
+brems_fem <- new('actuarialtable', x = brems_fem@x, lx = brems_fem@lx, interest = 0.06, name = 'BR-EMSmt-v.2021-f')
+
+at2000_mas <- probs2lifetable(probs = at2000_mas$qx, type = 'qx', radix = 100000, name = 'AT-2000 MALE')
+at2000_mas <- new('actuarialtable', x = at2000_mas@x, lx = at2000_mas@lx, interest = 0.06, name = 'AT-2000 MALE')
+
+at2000_fem <- probs2lifetable(probs = at2000_fem$qx, type = 'qx', radix = 100000, name = 'AT-2000 FEMALE')
+at2000_fem <- new('actuarialtable', x = at2000_fem@x, lx = at2000_fem@lx, interest = 0.06, name = 'AT-2000 FEMALE')
+
+ibge2020_mas <- probs2lifetable(probs = ibge2020_mas$qx, type = 'qx', radix = 100000, name = 'IBGE 2020 - HOMENS')
+ibge2020_mas <- new('actuarialtable', x = ibge2020_mas@x, lx = ibge2020_mas@lx, interest = 0.06, name = 'IBGE 2020 - HOMENS')
+
+ibge2020_fem <- probs2lifetable(probs = ibge2020_fem$qx, type = 'qx', radix = 100000, name = 'IBGE 2020 - MULHERES')
+ibge2020_fem <- new('actuarialtable', x = ibge2020_fem@x, lx = ibge2020_fem@lx, interest = 0.06, name = 'IBGE 2020 - MULHERES')
+
+at83_fem <- probs2lifetable(probs = at_83_fem$qx, type = 'qx', radix = 100000, name = 'AT-83 FEMALE (IAM)')
+at83_fem <- new('actuarialtable', x = at83_fem@x, lx = at83_fem@lx, interest = 0.06, name = 'AT-83 FEMALE (IAM)')
+
+at83_mas <- probs2lifetable(probs = at_83_mas$qx, type = 'qx', radix = 100000, name = 'AT-83 MALE (IAM)')
+at83_mas <- new('actuarialtable', x = at83_mas@x, lx = at83_mas@lx, interest = 0.06, name = 'AT-83 MALE (IAM)')
+```
+
+
+# Instruções:
+
+::: {style="text-align: justify;"}
+O presente trabalho (em grupo, valor 4,0) visa a simulação de 1.000 cenários do cálculo de um seguro de vida dotal misto que envolve um casal, com idades o homem 30 anos e mulher 25 anos. O seguro oferece a seguinte indenização:
+
+- em caso de morte de um dos segurados durante o prazo de 20 anos, paga-se no final do ano da morte a indenização de R$ 200.000,00 ao que sobreviveu;
+
+- em caso de sobrevivência de ambos no final dos 20 anos após o início do contrato,
+reembolsam-se os prêmios pagos, sendo deduzido uma taxa de 10% do valor para custeio de
+despesas.
+
+A taxa de juros é de 6% e o prêmio é pago pelo casal anualmente ao longo de 20 anos de
+forma antecipada. Para a análise utilize como base na tábua de vida BR-EMS 2021 (feminina e masculina), para estimar as probabilidades de sobrevivência.
+
+Entrega: O trabalho deve ser elaborado em formato de relatório (*Word*) e desenvolvido com o software *R* a partir do pacote *lifecontingencies* (com o uso das funções *rLife*, *rLifeContingencies*, *rLifexyz* e *rLifeContingenciesXyz*). É preciso que o trabalho contemple as seguintes questões:
+
+1 - Determinação do Valor Médio do Prêmio.
+
+2 - Sensibilidade do Prêmio às mudanças de parâmetros: Demonstrar como mudanças no
+parâmetro tempo de vida futuro, dada pela tábua de vida, impactam o custo do seguro de vida, considerando uma amostra aleatória de tamanho 5.
+
+3 - Comparação com outras Tábuas de Vida: Além da tábua de vida *BR-EMS 2021*, comparar os resultados obtidos com outras tábuas de vida amplamente utilizadas (*AT-2000*, *AT-83* e *IBGE2020*). Essa análise permitirá avaliar como a escolha da tábua de vida pode afetar as projeções atuariais.
+
+4 - Determinação da Reserva Matemática, de forma estocástica, passados 10 anos de contratação do seguro a partir da simulação de 1.000 (mil) cenários para o cálculo atuariais.
+:::
+
+# Cálculo do Valor Médio do Prêmio
+
+```{r}
+#### Tábuas
+tabua_brems <- c(brems_mas,brems_fem)
+tabua_at <- c(at2000_mas, at2000_fem)
+tabua_ibge <- c(ibge2020_mas, ibge2020_fem)
+tabua_at83 <- c(at83_mas, at83_fem)
+
+#### Condições
+importancia <- 200000
+idades <- c(30,25)
+tempo <- 20
+despesa <- 0.1
+juros <- 0.06
+desconto <- 1/(1+juros)
+
+### Cálculo do Prêmio Determinístico
+## Função para cálculo
+calcular_premio_det <- function(tabua, idades, tempo, desconto, importancia, despesa) {
+  seguro <- Axyzn(tablesList = tabua, x = idades, n = tempo, status = 'joint')
+  pagamento <- axyzn(tablesList = tabua, x = idades, n = tempo, status = 'last', payment = 'advance')
+  sobrevivencia <- desconto^tempo * pxyzt(tablesList = tabua, x = idades, t = tempo, status = 'joint')
+
+  premio_det <- (importancia * seguro) / (pagamento - tempo * sobrevivencia * (1 - despesa))
+  return(premio_det)
+}
+
+## Cálculo dos Prêmios
+# Tábuas BR-EMS
+premio_brems_d <- calcular_premio_det(tabua_brems, idades, tempo, desconto, importancia, despesa)
+# Tábuas AT-2000
+premio_at2000_d <- calcular_premio_det(tabua_at, idades, tempo, desconto, importancia, despesa)
+# Tábuas IBGE-2020
+premio_ibge_d <- calcular_premio_det(tabua_ibge, idades, tempo, desconto, importancia, despesa)
+# Tábuas AT-83
+premio_at83_d <- calcular_premio_det(tabua_at83, idades, tempo, desconto, importancia, despesa)
+
+### Cálculo do Prêmio Médio
+## Função para cálculo
+calcular_premio <- function(tabuas, idades, tempo, juros, importancia, despesa) {
+  seguro <- mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'Axyz', tablesList = tabuas, x = idades, t = tempo, i = juros, status = 'joint'))
+  pagamento <- mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'axyz', tablesList = tabuas, x = idades, t = tempo, i = juros, status = 'last', payment = 'advance'))
+  sobrevivencia <- mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'axyz', tablesList = tabuas, x = idades, m = tempo, status = 'joint', payment = 'advance')) / 
+                      mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'axyz', tablesList = tabuas, x = c(50, 45), status = 'joint', payment = 'advance'))
+
+  premio_est <- (importancia * seguro) / (pagamento - tempo * sobrevivencia * (1 - despesa))
+  return(premio_est)
+}
+
+## Cálculo dos Prêmios
+# Tábuas BR-EMS
+premio_brems_e <- calcular_premio(tabua_brems, idades, tempo, juros, importancia, despesa)
+# Tábuas AT-2000
+premio_at2000_e <- calcular_premio(tabua_at, idades, tempo, juros, importancia, despesa)
+# Tábuas IBGE 2020
+premio_ibge_e <- calcular_premio(tabua_ibge, idades, tempo, juros, importancia, despesa)
+# Tábuas AT-83
+premio_at83_e <- calcular_premio(tabua_at83, idades, tempo, juros, importancia, despesa)
+```
+
+:::{style="text-align: justify;"}
+**Resposta:**
+
+O Prêmio será calculado por meio da expressão:
+
+$$  P_{30;25} = \frac{200.000 \cdot A^1_{30;25:\overline{20|}}}{ä_{\overline{30;25}:\overline{20|}} - 20 \cdot {}_{20}E_{30;20} \cdot(1-0,1)} $$
+
+Com base nas quatro tábuas de mortalidade, calculamos os valores dos prêmios por meio determinístico e por valor médio, este último através de uma simulação estocástica de 1.000 amostras, obtendo os valores da tabela a seguir:
+:::
+
+```{r echo=FALSE}
+### Imprime resultados
+tabela_premios <- c("BR-EMSmt-v.2021", "AT-2000", "IBGE 2020", "AT-83")
+premios_estocasticos <- c(premio_brems_e, premio_at2000_e, premio_ibge_e, premio_at83_e)
+premios_deterministicos <- c(premio_brems_d, premio_at2000_d, premio_ibge_d, premio_at83_d)
+
+df_premios <- data.frame(Tábua = tabela_premios, 
+                         `Prêmio Estocástico` = premios_estocasticos, 
+                         `Prêmio Determinístico` = premios_deterministicos)
+
+kable(df_premios, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+# Sensibilidade do Prêmio:
+
+```{r}
+### Geração dos tempos futuros de vida
+## Função para cálculo dos tempos de vida futuros
+calcular_tempo_fut <- function(tabua, idades, amostra) {
+  rLifexyz(n = amostra, tablesList = tabua, x = idades, type = 'Kx')
+}
+
+## Cálculo dos tempos por tábua
+# Tábuas BR-EMS 
+tf_brems <- calcular_tempo_fut(tabua_brems, idades, amostra = 5)
+# Tábuas At-2000
+tf_at2000 <- calcular_tempo_fut(tabua_at, idades, amostra = 5)
+# Tábuas IBGE 2020 
+tf_ibge <- calcular_tempo_fut(tabua_ibge, idades, amostra = 5)
+# Tábuas At-83
+tf_at83 <- calcular_tempo_fut(tabua_at83, idades, amostra = 5)
+
+### Cálculo do Prêmio
+## Função para cálculo dos prêmios
+calcular_premio_tf <- function(tabua, idades, tempos_futuros, tempo, desconto, importancia, despesa) {
+  apply(tempos_futuros, 1, function(tf) {
+    seguro <- Axyzn(tablesList = tabua, x = idades, n = min(tempo, tf[1], tf[2]), status = 'joint')
+    pagamento <- axyzn(tablesList = tabua, x = idades, n = min(tempo, max(tf[1], tf[2])), status = 'last')
+    sobrevivencia <- desconto^tempo * pxyzt(tablesList = tabua, x = idades, t = tempo, status = 'joint')
+    (importancia * seguro) / (pagamento - tempo * sobrevivencia * (1 - despesa))
+  })
+}
+
+## Cálculo dos prêmios para todas as amostras
+# Tábua BR-EMS 2021
+premios_tf_brems <- calcular_premio_tf(tabua_brems, idades, tf_brems, tempo, desconto, importancia, despesa)
+# Tábua AT-2000
+premios_tf_at2000 <- calcular_premio_tf(tabua_at, idades, tf_at2000, tempo, desconto, importancia, despesa)
+# Tábua IBGE 2020
+premios_tf_ibge <- calcular_premio_tf(tabua_ibge, idades, tf_ibge, tempo, desconto, importancia, despesa)
+# Tábua AT-83
+premios_tf_at83 <- calcular_premio_tf(tabua_at83, idades, tf_at83, tempo, desconto, importancia, despesa)
+```
+
+:::{style="text-align: justify;"}
+Prêmios calculados com base no tempo de vida futuro utilizando as tábuas **BR-EMSmt-v.2021**:
+
+```{r echo=FALSE}
+## Imprime os resultados
+# Criar o data frame com os resultados
+df_brems <- data.frame(
+  `Tempo de Vida Futuro Homem` = tf_brems[, 1],
+  `Tempo de Vida Futuro Mulher` = tf_brems[, 2],
+  `Prêmio Correspondente` = premios_tf_brems
+)
+
+# Exibir o data frame
+kable(df_brems, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::
+
+:::{style="text-align: justify;"}
+Prêmios calculados com base no tempo de vida futuro utilizando as tábuas **AT-2000**:
+
+```{r echo=FALSE}
+## Imprime os resultados
+# Criar o data frame com os resultados
+df_at2000 <- data.frame(
+  `Tempo de Vida Futuro Homem` = tf_at2000[, 1],
+  `Tempo de Vida Futuro Mulher` = tf_at2000[, 2],
+  `Prêmio Correspondente` = premios_tf_at2000
+)
+
+# Exibir o data frame
+kable(df_at2000, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::
+
+:::{style="text-align: justify;"}
+Prêmios calculados com base no tempo de vida futuro utilizando as tábuas **IBGE 2020**:
+
+```{r echo=FALSE}
+## Imprime os resultados
+# Criar o data frame com os resultados
+df_ibge <- data.frame(
+  `Tempo de Vida Futuro Homem` = tf_ibge[, 1],
+  `Tempo de Vida Futuro Mulher` = tf_ibge[, 2],
+  `Prêmio Correspondente` = premios_tf_ibge
+)
+
+# Exibir o data frame
+kable(df_ibge, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::
+
+:::{style="text-align: justify;"}
+Prêmios calculados com base no tempo de vida futuro utilizando as tábuas **AT-83**:
+
+```{r echo=FALSE}
+## Imprime os resultados
+# Criar o data frame com os resultados
+df_at83 <- data.frame(
+  `Tempo de Vida Futuro Homem` = tf_at83[, 1],
+  `Tempo de Vida Futuro Mulher` = tf_at83[, 2],
+  `Prêmio Correspondente` = premios_tf_at83
+)
+
+# Exibir o data frame
+kable(df_at83, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::
+
+# Cálculo da Reserva Matemática:
+
+```{r}
+### Condições
+t_reserva <- 10
+idades_reserva <- idades + t_reserva
+
+### Cálculo da Reserva Determinística
+## Função para o cálculo
+calcular_reserva_det <- function(tabua, premio, n_pagamento, desconto, importancia, despesa) {
+  seguro <- Axyzn(tablesList = tabua, x = idades_reserva, n = t_reserva, status = 'joint')
+  pagamento <- axyzn(tablesList = tabua, x = idades_reserva, n = t_reserva, status = 'last', payment = 'advance')
+  sobrevivencia <- desconto^t_reserva * pxyzt(tablesList = tabua, x = idades_reserva, t = t_reserva, status = 'joint')
+  reserva_det <- (importancia * seguro) + (premio * (n_pagamento * (1 - despesa) * sobrevivencia - pagamento))
+  return(reserva_det)
+}
+
+## Cálculo das Reservas Matemáticas
+# Tábuas BR-EMS
+reserva_brems_d <- calcular_reserva_det(tabua_brems, premio_brems_d, tempo, desconto, importancia, despesa)
+# Tábuas AT-2000
+reserva_at2000_d <- calcular_reserva_det(tabua_at, premio_at2000_d, tempo, desconto, importancia, despesa)
+# Tábuas IBGE 2020
+reserva_ibge_d <- calcular_reserva_det(tabua_ibge, premio_ibge_d, tempo, desconto, importancia, despesa)
+# Tábuas AT-83
+reserva_at83_d <- calcular_reserva_det(tabua_at83, premio_at83_d, tempo, desconto, importancia, despesa)
+
+### Cálculo da Reserva Matemática Média
+## Função para cálculo
+calcular_reserva <- function(tabua, premio, n_pagamento, desconto, importancia, despesa) {
+  seguro <- mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'Axyz', tablesList = tabua, x = idades_reserva, t = t_reserva, i = juros, status = 'joint'))
+  pagamento <- mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'axyz', tablesList = tabua, x = idades_reserva, t = t_reserva, i = juros, status = 'last', payment = 'advance'))
+  sobrevivencia <- mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'axyz', tablesList = tabua, x = idades_reserva, m = t_reserva, i = juros, status = 'joint', payment = 'advance')) / mean(rLifeContingenciesXyz(n = 1000, lifecontingency = 'axyz', tablesList = tabua, x = c(50, 45), i = juros, status = 'joint', payment = 'advance'))
+  reserva_est <- (importancia * seguro) + (premio * (n_pagamento * (1 - despesa) * sobrevivencia - pagamento))
+  return(reserva_est)
+}
+
+## Cálculo das Reservas Matemáticas Médias
+# Tábuas BR-EMS 2021
+reserva_brems_e <- calcular_reserva(tabua_brems, premio_brems_e, tempo, desconto, importancia, despesa)
+# Tábuas AT-2000
+reserva_at2000_e <- calcular_reserva(tabua_at, premio_at2000_e, tempo, desconto, importancia, despesa)
+# Tábuas IBGE 2020
+reserva_ibge_e <- calcular_reserva(tabua_ibge, premio_ibge_e, tempo, desconto, importancia, despesa)
+# Tábuas AT-83
+reserva_at83_e <- calcular_reserva(tabua_at83, premio_at83_e, tempo, desconto, importancia, despesa)
+```
+
+:::{style="text-align: justify;"}
+**Resposta:**
+
+A Reserva Matemática será calculada por meio da expressão:
+
+$$  {}_{10}V_{30;25} = 200.000 \cdot A^1_{40;35:\overline{10|}} + 20 \cdot P_{30} \cdot {}_{10}E_{40;35} \cdot (1-0,1) - P_{30} \cdot ä_{\overline{40;35}:\overline{10|}} $$
+Com pequenas manipulações algébricas podemos simplificar a expressão para:
+
+$$  {}_{10}V_{30;25} = 200.000 \cdot A^1_{40;35:\overline{10|}} + P_{30} \cdot (18 \cdot {}_{10}E_{40;35} - ä_{\overline{40;35}:\overline{10|}}) $$
+Com base nas quatro tábuas de mortalidade, calculamos os valores das reserva matemáticas por meio determinístico e por valor médio, este último através de uma simulação estocática de 1.000 amostras, obtendo os valores da tabela a seguir.
+
+Para o cálculo das Reservas Matemáticas Médias, de forma estocástica, utilizamos os prêmios médios de cada tábua, calculados anteriormente, a fim de que a Reserva Média calculada corresponda ao prêmio médio anterior.
+
+```{r echo=FALSE}
+### Imprime resultados
+tabela_reservas <- c("BR-EMSmt-v.2021", "AT-2000", "IBGE 2020", "AT-83")
+reservas_deterministicas <- c(reserva_brems_d, reserva_at2000_d, reserva_ibge_d, reserva_at83_d)
+reservas_estocasticas <- c(reserva_brems_e, reserva_at2000_e, reserva_ibge_e, reserva_at83_e)
+
+df_reservas <- data.frame(Tábua = tabela_reservas, 
+                         `Reserva Estocástica`= reservas_estocasticas,
+                         `Reserva Determinística` = reservas_deterministicas)
+
+kable(df_reservas, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::

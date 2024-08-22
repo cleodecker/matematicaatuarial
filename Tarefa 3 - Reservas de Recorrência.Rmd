@@ -1,0 +1,417 @@
+---
+title: "Matemática Atuarial II"
+subtitle: "Tarefa 3 - Reservas Matemáticas Prospectivas, Retrospectivas e de Recorrência"
+author: "Cleo Decker Anacleto & Brenda Morais de Almeida"
+date: "`r Sys.Date()`"
+output:
+  word_document: 
+    toc: yes
+  pdf_document:
+    toc: yes
+  html_document: 
+    highlight: zenburn
+    theme: paper
+    number_sections: false
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    df_print: default
+always_allow_html: true
+knitr:
+  opts_chunk:
+    screenshot.force: FALSE
+---
+
+```{css, echo=FALSE}
+.page-break {
+  page-break-before: always;
+  width: 100%;
+}
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Procedimentos Preliminares
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())               # limpa os objetos da ultima execução
+options(scipen = 9999,      # inibe exibição de resultaos em notação científica
+        digits = 6,         # limita o número de digitos das saídas do programa
+        max.print = 20)     # limita o tamanho da saída do programa
+
+library(lifecontingencies)  # pacote com operações financeiras e atuariais
+library(magrittr)           # pacote com operadores semânticos %>%, %$%
+library(kableExtra)         # pacote para formatar tabelas
+library(readxl)             # pacote para ler e manipular arquivos xlsx
+```
+
+# Tábuas Biométricas
+
+::: {style="text-align: justify;"}
+Considerando a tábua BR-EMS 2021mt-v.2021 feminina e masculina e i = 5,5% a.a.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+setwd("C:/Users/cleod/OneDrive/Documentos/Documentos/Estudos/Ciências Atuariais/Matemática Atuarial II")
+
+tabuas <- read_excel('Tábuas.xlsx')
+
+tabua_mas <- tabuas[, c("Idade", "BR-EMSmt-v.2021-m")]
+names(tabua_mas) <- c("x", "qx")
+tabua_fem <- tabuas[, c("Idade", "BR-EMSmt-v.2021-f")]
+names(tabua_fem) <- c("y", "qy")
+```
+
+```{r}
+tabua_mas <- probs2lifetable(probs = tabua_mas$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-m')
+tabua_mas <- new('actuarialtable', x = tabua_mas@x, lx = tabua_mas@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-m')
+print(tabua_mas)
+
+tabua_fem <- probs2lifetable(probs = tabua_fem$qy, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-f')
+tabua_fem <- new('actuarialtable', x = tabua_fem@x, lx = tabua_fem@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-f')
+print(tabua_fem)
+```
+
+# Questão 1
+
+::: {style="text-align: justify;"}
+Um seguro dotal puro de 20 anos que paga R\$ 50.000,00 no final desse período é adquirido por um indivíduo com 25 anos e pago com anuidade antecipada e temporária de 20 anos. Calcule as reservas retrospectiva e prospectiva para t igual a 10 anos. Utilize as seguintes informações:
+:::
+
+```{r echo=FALSE}
+dados1 <- data.frame(
+  v = 0.943396, 
+  l25 = 95650.15,
+  l35 = 94206.55,
+  l45 = 91640.50,
+  ä25 = 16.22419,
+  ä35 = 15.39262,
+  ä45 = 14.11209
+)
+
+kable(dados1, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Cálculo do Prêmio
+
+```{r}
+E25_20 <- dados1[1,1] ** 20 * dados1[1,4] / dados1[1,2]
+ä25_20 <- dados1[1,5] - E25_20 * dados1[1,7]
+
+premio1 <- 50000 * E25_20 / ä25_20
+premio11 <- format(premio1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+O valor do prêmio foi obtido por meio do uso das seguintes expressões:
+
+$$  {}_{20}E_{25} = v^{20} \cdot \frac{l_{45}}{l_{25}} $$
+
+$$  ä_{25:\overline{20|}} = ä_{25} - {}_{20}E_{25} \cdot ä_{45} $$
+
+$$  P_{25} = 50.000 \cdot \frac{{}_{20}E_{25}}{ä_{25:\overline{20|}}} $$
+
+**O valor do prêmio a ser pago anualmente pelo segurado será de R\$ `r premio11`.**
+
+## Reserva pelo Método Prospectivo
+
+```{r}
+E35_10 <- dados1[1,1] ** 10 * dados1[1,4] / dados1[1,3]
+ä35_10 <- dados1[1,6] - E35_10 * dados1[1,7]
+
+reserva1p <- 50000 * E35_10 - premio1 * ä35_10
+reserva1p1 <- format(reserva1p, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método prospectivo, foram utilizadas as seguintes expressões:
+
+$$  {}_{10}E_{35} = v^{10} \cdot \frac{l_{45}}{l_{35}} $$
+
+$$  ä_{35:\overline{10|}} = ä_{35} - {}_{10}E_{35} \cdot ä_{45} $$
+
+$$  {}_{10}V_{25} = 5.000 \cdot {}_{10}E_{35} - P_{25} \cdot ä_{35:\overline{10|}} $$
+
+**O valor da Reserva Matemática no 10º ano de contrato, calculado pelo método prospectivo, deverá ser de R\$ `r reserva1p1`.**
+
+## Reserva pelo Método Retrospectivo
+
+```{r}
+E25_10 <- dados1[1,1] ** 10 * dados1[1,3] / dados1[1,2]
+ä25_10 <- dados1[1,5] - E25_10 * dados1[1,6]
+
+reserva1r <- premio1 * ä25_10 / E25_10
+reserva1r1 <- format(reserva1r, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método retrospectivo, foram utilizadas as seguintes expressões:
+
+$$  {}_{10}E_{25} = v^{10} \cdot \frac{l_{35}}{l_{25}} $$ 
+
+$$  ä_{25:\overline{10|}} = ä_{25} - {}_{10}E_{25} \cdot ä_{35} $$ 
+
+$$  {}_{10}V_{25} = \frac{P_{25} \cdot ä_{25:\overline{10|}} - 50.000 \cdot 0}{{}_{10}E_{25}} $$
+
+**O valor da Reserva Matemática no 10º ano de contrato, calculado pelo método retrospectivo, deverá ser de R\$ `r reserva1r1`.**
+
+# Questão 2
+
+::: {style="text-align: justify;"}
+Para resolver esse exercício, considere os seguintes valores:
+
+```{r echo=FALSE}
+dados2 <- data.frame(
+  p30_20 = 0.94, 
+  p38_12 =  0.96,
+  ä38_2 = 1.95,
+  ä30_10 = 7.96,
+  ä30_20 = 12.59,
+  ä38_12 = 9.06,
+  A30_20 = 0.031,
+  A38_12 = 0.032,
+  v = 0.95
+)
+
+kable(dados2, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Um indivíduo de 30 anos contratou um seguro de vida de 20 anos com as seguintes garantias:
+
+-   em caso de morte durante o prazo de contrato, o paga-se 5000 u.m.;
+
+-   em caso de sobrevivência no final do contrato, reembolsam-se os prêmios pagos.
+
+O prêmio é anual, nivelado, pago por um período de 10 anos de forma antecipada. Determine o valor da reserva matemática na oitava data de aniversário do contrato.
+:::
+
+```{r}
+premio2 <- (5000 * dados2[1,7]) / (dados2[1,4] - dados2[1,9] ** 20 * dados2[1,1] * 10)
+
+reserva2 <- 5000 * dados2[1,8] + dados2[1,9] ** 12 * dados2[1,2] * premio2 * 10 - premio2 * dados2[1,3]
+reserva2 <- format(reserva2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+O valor do prêmio foi obtido por meio do uso das seguintes expressões:
+
+$$  {}_{20}E_{30} = v^{20} \cdot {}_{20}p_{30} $$
+
+$$  P_{30} = \frac{5.000 * A^1_{30:\overline{20|}}}{ä_{30:\overline:{10|}} - {}_{20}E_{30} \cdot 10}  $$
+
+Por sua vez, a reserva matemática foi obtida pelo método prospectivo, utilizando as seguintes expressões:
+
+$$  {}_{12}E_{38} = v^{12} \cdot {}_{12}p_{38} $$ $$  {}_{8}V_{30} = 5.000 \cdot A^1_{38:\overline{12|}} + {}_{12}E_{38} \cdot P_{30} \cdot 10 - P_{30} \cdotä_{38:\overline{2|}} $$
+
+**O valor da Reserva Matemática no 8º ano de vigência de contrato deverá ser de `r reserva2` u.m.**
+
+# Questão 3
+
+::: {style="text-align: justify;"}
+Encontre o prêmio puro P de uma anuidade vitalícia adquirida por x = 30. Se ele estiver vivo, a anuidade de 32 u.m. começa a ser paga aos 60 anos, no início de cada ano em que ele estiver vivo. A anuidade é adquirida com uma anuidade antecipada temporária anual de 20 anos no valor P e que começa a ser paga aos 30 anos. Sabe-se que:
+
+```{r echo=FALSE}
+dados3 <- data.frame(
+  v = 0.943, 
+  ä60 = 11.145,
+  ä50 = 13.267,
+  ä40 = 14.817,
+  ä30 = 15.856,
+  p30_10 = 0.98,
+  p40_10 = 0.961,
+  p50_10 = 0.915
+  )
+
+kable(dados3, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Encontre P e a reserva nos instantes t = 10, 20 e 30 pelos métodos prospectivos e retrospectivos.
+:::
+
+## Cálculo do Prêmio
+
+```{r}
+p30_30 <- dados3[1,6] * dados3[1,7] * dados3[1,8]
+p30_20 <- dados3[1,6] * dados3[1,7]
+
+ä_30.30 <- dados3[1,1] ** 30 * p30_30 * dados3[1,2]
+ä30_20 <- dados3[1,5] - dados3[1,1] ** 20 * p30_20 * dados3[1,3]
+
+premio3 <- 32 * ä_30.30 / ä30_20
+premio31 <- format(premio3, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 6)
+```
+
+**Resposta:**
+
+O valor do prêmio foi obtido por meio do uso das seguintes expressões:
+
+$$  {}_{30}p_{30} = {}_{10}p_{30} \cdot {}_{10}p_{40} \cdot {}_{10}p_{50} $$
+
+$$  {}_{20}p_{30} = {}_{10}p_{30} \cdot {}_{10}p_{40} $$
+
+$$  {}_{30|}ä_{30} = v^{30} \cdot {}_{30}p_{30} \cdot ä_{60} $$
+
+$$  ä_{30:\overline{20|}} = ä_{30} - v^{20} \cdot {}_{20}p_{30} \cdot ä_{50} $$
+
+$$  P_{30} = \frac{32 \cdot {}_{30|}ä_{30}}{ä_{30:\overline{20|}}} $$
+
+**O valor do prêmio a ser pago anualmente pelo segurado será de `r premio31` u.m.**
+
+## Reserva pelo Método Prospectivo
+
+### t = 10
+
+```{r}
+p_40.20 <- dados3[1,7] * dados3[1,8]
+ä_40.20 <- dados3[1,1] ** 20 * p_40.20 * dados3[1,2]
+ä40_10 <- dados3[1,4] - dados3[1,1] ** 10 * dados3[1,7] * dados3[1,3]
+
+reserva3p_10 <- 32 * ä_40.20 - premio3 * ä40_10
+reserva3p_10 <- format(reserva3p_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método prospectivo, foram utilizadas as seguintes expressões:
+
+$$  {}_{20}p_{40} = {}_{10}p_{40} \cdot {}_{10}p_{50} $$
+
+$$  {}_{20}ä_{40} = v^{20} \cdot {}_{20}p_{40} \cdot ä_{60} $$
+
+$$  ä_{40:\overline{10|}} = ä_{40} - v^{10} \cdot {}_{10}p_{40} \cdot ä_{50} $$
+
+$$  {}_{10}V_{30} = 32 \cdot {}_{20|}ä_{40} - P_{30} \cdot ä_{40:\overline{10|}} $$
+
+**O valor da Reserva Matemática no 10º de vigência do contrato, calculado pelo método prospectivo, deverá de `r reserva3p_10` u.m.**
+
+### t = 20
+
+```{r}
+ä_50.10 <- dados3[1,1] ** 10 * dados3[1,8] * dados3[1,2]
+
+reserva3p_20 <- 32 * ä_50.10
+reserva3p_20 <- format(reserva3p_20, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método prospectivo, foram utilizadas as seguintes expressões:
+
+$$  {}_{10|}ä_{50} = v^{10} \cdot {}_{10}p_{40} \cdot ä_{60} $$
+
+$$  {}_{20}V_{30} = 32 \cdot {}_{10|}ä_{50} - P_{30} \cdot 0 $$ **O valor da Reserva Matemática no 20º de vigência do contrato, calculado pelo método prospectivo, deverá de `r reserva3p_20` u.m.**
+
+### t = 30
+
+```{r}
+reserva3p_30 <- 32 * dados3[1,2]
+reserva3p_30 <- format(reserva3p_30, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método prospectivo, foi utilizada a seguinte expressão:
+
+$$  {}_{30}V_{30} = 32 \cdot ä_{60} - P_{30} \cdot 0 $$
+
+**O valor da Reserva Matemática no 30º de vigência do contrato, calculado pelo método prospectivo, deverá de `r reserva3p_30` u.m.**
+
+## Reserva pelo Método Restrospectivo
+
+### t = 10
+
+```{r}
+ä30_10 <- dados3[1,5] - dados3[1,1] ** 10 * dados3[1,6] * dados3[1,4]
+E_30.10 <- dados3[1,1] ** 10 * dados3[1,6]
+
+reserva3r_10 <- premio3 * ä30_10 / E_30.10
+reserva3r_10 <- format(reserva3r_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método retrospectivo, foram utilizadas as seguintes expressões:
+
+$$  ä_{30:\overline{10|}} = ä_{30} - v^{10} \cdot {}_{10}p_{30} \cdot ä_{40} $$
+
+$$ {}_{10}E_{30} = v^{10} \cdot {}_{10}p_{30}  $$
+
+$$  {}_{10}V_{30} = \frac{P_{30} \cdot ä_{30:\overline{10|}} - 0}{{}_{10}E_{30}} $$
+
+**O valor da Reserva Matemática no 10º de vigência do contrato, calculado pelo método retrospectivo, deverá de `r reserva3r_10` u.m.**
+
+### t = 20
+
+```{r}
+E_30.20 <- dados3[1,1] ** 20 * dados3[1,6] * dados3[1,7]
+
+reserva3r_20 <- premio3 * ä30_20 / E_30.20
+reserva3r_20 <- format(reserva3r_20, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método retrospectivo, foram utilizadas as seguintes expressões:
+
+$$ {}_{20}E_{30} = v^{20} \cdot {}_{10}p_{30} \cdot {}_{10}p_{40} $$
+
+$$  {}_{20}V_{30} = \frac{P_{30} \cdot ä_{30:\overline{20|}} - 0}{{}_{20}E_{30}} $$
+
+**O valor da Reserva Matemática no 20º de vigência do contrato, calculado pelo método retrospectivo, deverá de `r reserva3r_20` u.m.**
+
+### t = 30
+
+```{r}
+E_30.30 <- dados3[1,1] ** 30 * dados3[1,6] * dados3[1,7] * dados3[1,8]
+
+reserva3r_30 <- premio3 * ä30_20 / E_30.30
+reserva3r_30 <- format(reserva3r_30, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método retrospectivo, foram utilizadas as seguintes expressões:
+
+$$ {}_{30}E_{30} = v^{30} \cdot {}_{10}p_{30} \cdot {}_{10}p_{40} \cdot {}_{10}p_{50} $$
+
+$$  {}_{30}V_{30} = \frac{P_{30} \cdot ä_{30:\overline{20|}} - 0}{{}_{30}E_{30}} $$
+
+**O valor da Reserva Matemática no 30º de vigência do contrato, calculado pelo método retrospectivo, deverá de `r reserva3r_30` u.m.**
+
+# Questão 4
+
+::: {style="text-align: justify;"}
+Calcule a reserva pelo método da recorrência em t = 4 para o seguinte caso: O segurado de 60 anos contrata um seguro temporário de 15 anos que remunera 1 u.m. os prêmios serão pagos de forma antecipada e temporária de 8 anos. Para a resolução da questão utilize a tábua BR-EMS 2021mt-v.2021 masculina e i = 5,5%.
+:::
+
+```{r}
+premio4 <- Axn(tabua_mas, x = 60, n = 15) / axn(tabua_mas, x = 60, n = 8, payment = 'advance')
+reserva4_1 <- Axn(tabua_mas, x = 63, n = 12) - premio4 * axn(tabua_mas, x = 63, n = 5, payment = 'advance')
+
+reserva4 <- (reserva4_1 + premio4 - Axn(tabua_mas, x = 63, n = 1)) / Exn(tabua_mas, x = 63, n =1)
+reserva4 <- format(reserva4, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 6)
+```
+
+**Resposta:**
+
+Para o cálculo da reserva matemática, pelo método de recorrência, foram utilizadas as seguintes expressões:
+
+$$  P_{60} = \frac{1 \cdot A^1_{60:\overline{15|}}}{ä_{60:\overline{8|}}} $$
+
+$$  {}_{3}V_{60} = 1 \cdot A^1_{63:\overline{12|}} - P_{60} \cdot ä_{63:\overline{5|}} $$
+
+$$  {}_{4}V_{60} = \frac{{}_{3}V_{60} + P_{60} - A^1_{63:\overline{1|}}}{{_{1}E_{63}}} $$
+
+**O valor da Reserva Matemática no 4º ano de vigência do contrato, calculado pelo método de recorrência, deverá ser de `r reserva4` u.m.**

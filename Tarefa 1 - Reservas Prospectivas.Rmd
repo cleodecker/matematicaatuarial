@@ -1,0 +1,208 @@
+---
+title: "Matemática Atuarial II"
+subtitle: "Tarefa 1 - Reservas Matemáticas Prospectivas"
+author: "Cleo Decker Anacleto & Brenda Morais de Almeida"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    highlight: zenburn
+    theme: paper
+    number_sections: false
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    df_print: default
+  pdf_document:
+    toc: yes
+  word_document: 
+    toc: yes
+---
+
+```{css, echo=FALSE}
+.page-break {
+  page-break-before: always;
+  width: 100%;
+}
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Procedimentos Preliminares
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())               # limpa os objetos da ultima execução
+options(scipen = 9999,      # inibe exibição de resultaos em notação científica
+        digits = 6,         # limita o número de digitos das saídas do programa
+        max.print = 20)     # limita o tamanho da saída do programa
+
+library(lifecontingencies)  # pacote com operações financeiras e atuariais
+library(magrittr)           # pacote com operadores semânticos %>%, %$%
+library(kableExtra)         # pacote para formatar tabelas
+library(readxl)             # pacote para ler e manipular arquivos xlsx
+```
+
+
+# Tábuas Biométricas
+::: {style="text-align: justify;"}
+Considerando a tábua BR-EMS 2021mt-v.2021 feminina e masculina e i = 5,5% a.a, calcule:
+:::
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+setwd("C:/Users/cleod/OneDrive/Documentos/Documentos/Estudos/Ciências Atuariais/Matemática Atuarial II")
+
+tabuas <- read_excel('Tábuas.xlsx')
+
+tabua_mas <- tabuas[, c("Idade", "BR-EMSmt-v.2021-m")]
+names(tabua_mas) <- c("x", "qx")
+tabua_fem <- tabuas[, c("Idade", "BR-EMSmt-v.2021-f")]
+names(tabua_fem) <- c("y", "qy")
+```
+
+```{r}
+tabua_mas <- probs2lifetable(probs = tabua_mas$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-m')
+tabua_mas <- new('actuarialtable', x = tabua_mas@x, lx = tabua_mas@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-m')
+print(tabua_mas)
+
+tabua_fem <- probs2lifetable(probs = tabua_fem$qy, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-f')
+tabua_fem <- new('actuarialtable', x = tabua_fem@x, lx = tabua_fem@lx, interest = 0.055, name = 'BR-EMSmt-v.2021-f')
+print(tabua_fem)
+```
+
+
+# Questão 1
+
+::: {style="text-align: justify;"}
+Um homem de 45 anos de idade contrata uma renda anual de R\$ 5.000,00 de forma postecipada, diferida e temporária pelo período de 5 anos, o prazo de diferimento é de 6 anos, considere ainda que os prêmios são pagos de forma anual durante o diferimento. Calcule a reserva matemática no 3º ano de vigência do contrato.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+premio1 <- 5000 * (axn(tabua_mas, x = 45, n = 5, m = 6, payment = 'arrears')) / axn(tabua_mas, x = 45, n = 6, payment = 'advance')
+
+reserva1 <- 5000 * (axn(tabua_mas, x = 48, n = 5, m = 3, payment =  'arrears')) - premio1 * (axn(tabua_mas, x = 48, n = 3, payment =  'advance'))
+
+reserva1 <- format(reserva1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Considerando o cálculo do valor do prêmio como:
+
+$$ P_{45} = 5000 \cdot \frac{{}_{6|}a_{45:\overline{5|}}}{ä_{45:\overline{6|}}} $$
+
+E o cálculo da reserva matemática ao 3º ano de vigência como:
+
+$$ {}_{3}V_{45} = 5000 \cdot {}_{3}a_{48:\overline{5|}} - P_{45} \cdot ä_{48:\overline{3|}} $$
+
+**O valor da Reserva Matemática no 3º ano de vigência de contrato deverá ser de R$ `r reserva1`**.
+:::
+
+# Questão 2
+
+::: {style="text-align: justify;"}
+Um homem de 85 anos de idade contrata uma renda anual onde, após o seu falecimento, a sua filha de 40 anos de idade receberá o valor de R$ 15.000,00 pelo período de 4 anos. O pagamento dos prêmios ocorrerá de forma anual durante 5 anos. Calcule a reserva matemática no 2º ano de vigência do contrato.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+a85_40_4 <- axn(tabua_fem, x = 40, n = 4, payment = 'advance') -
+axyn(tablex = tabua_mas, x = 85, tabley = tabua_fem, y = 40, n = 4, status = 'joint', payment = 'advance')
+
+a87_42_4 <- axn(tabua_fem, x = 42, n = 4, payment = 'advance') -
+axyn(tablex = tabua_mas, x = 87, tabley = tabua_fem, y = 42, n = 4, status = 'joint', payment = 'advance')
+```
+
+```{r}
+premio2 <- 15000 * a85_40_4 / axn(tabua_mas, x = 85, n = 5, payment = 'advance')
+
+reserva2 <- 15000 * a87_42_4 - premio2 * axn(tabua_mas, x= 87, n = 3, payment = 'advance')
+
+reserva2 <- format(reserva2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+
+**Resposta:**
+
+Considerando o cálculo do prêmio como:
+
+$$ P_{85;40} = 15000 \cdot \frac{ä_{85|40:\overline{4|}}}{ä_{85:\overline{5|}}} $$
+E o cálculo da reserva matemática ao 2º ano de vigência como:
+
+$$  {_{2}V_{85;40}} = 15000 \cdot ä_{87|42:\overline{4|}} - P_{85;40} \cdot ä_{87:\overline{3|}} $$
+
+**O valor da Reserva Matemática no 2º ano de vigência de contrato deverá ser de R$ `r reserva2`.**
+
+# Questão 3
+
+::: {style="text-align: justify;"}
+Um casal sendo o homem de 85 anos e ela com 83 anos contrata um seguro onde os mesmos serão remunerados no valor de R$ 4.000,00, caso ambos sobrevivam o período de 6 anos, e caso faleçam dentro desse mesmo período um beneficiário será remunerado com a mesma quantia. O pagamento do prêmio acontecerá de forma única. Calcule a reserva matemática no 3º ano do contrato.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+E_88_86_3 <- Exn(tabua_mas, x = 88, n = 3) * (Exn(tabua_fem, x = 86, n = 3) / (1.055^(-3)))
+
+AE_88_86_3 <- Axyn(tablex = tabua_mas, x = 88, tabley = tabua_fem, y = 86, n = 3, status = 'joint') + E_88_86_3
+
+reserva3 <- 4000 * AE_88_86_3
+reserva3 <- format(reserva3, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+::: {style="text-align: justify;"}
+Considerando que o prêmio foi pago de forma única, o cálculo da reserva matemática se iguala ao valor do VABF no tempo 3:
+:::
+
+$$  {}_{3}V_{85;83} = 4000 \cdot A_{88;83:\overline{3|}} $$
+
+**Resposta:**
+
+**O valor da Reserva Matemática no 3º ano de vigência do contrato deverá ser de R$ `r reserva3`.**
+
+# Questão 4
+
+::: {style="text-align: justify;"}
+Um casal sendo o ele com 45 anos de idade e ela com 40 anos de idade, resolvem contratar um seguro temporário de 5 anos que remunera R$ 4.300,00 caso um dos dois venha a falecer, com uma carência de 5 anos. Considere ainda que o pagamento do prêmio é efetuado durante o período de carência de forma anual. Calcule a reserva no 3º ano de vigência do contrato.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+premio4 <- 4300 * Axyn(tablex = tabua_mas, x = 45, tabley = tabua_fem, y = 40, n = 5, m = 5, status = 'joint') / axyn(tablex = tabua_mas, x = 45, tabley = tabua_fem, y = 40, n = 5, status = 'joint', payment = 'advance')
+
+reserva4 <- 4300 * Axyn(tablex = tabua_mas, x = 48, tabley = tabua_fem, y = 43, n = 5, m = 2, status = 'joint') - premio4 * axyn(tablex = tabua_mas, x = 48, tabley = tabua_fem, y = 43, n = 2, status = 'joint', payment = 'advance')
+
+reserva4 <- format(reserva4, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+**Resposta:**
+
+Considerando o cálculo do prêmio como:
+
+$$  P_{45;40} = 4300 \cdot \frac{{}_{5|}A^{1}_{45;40:\overline{5|}}}{ä_{45;40:\overline{5|}}}  $$
+E o cálculo da reserva matemática no 3º ano de vigência como:
+
+$$ {}_{3}V_{45:40} = 4300 \cdot {}_{2}A^{1}_{48;43:\overline{5|}} - P_{45;40} \cdot ä_{48;43:\overline{2|}} $$
+
+**O valor da Reserva Matemática no 3º ano de vigência de contrato deverá ser de R$ `r reserva4`.**
+
+# Questão 5
+
+::: {style="text-align: justify;"}
+Agora considerando as mesmas informações da questão 4, porém o pagamento será realizado a um beneficiário caso ambos faleçam dentro do período de 5 anos, considere ainda um carregamento de administrativo de 1,2% do capital segurado. Calcule a reserva no 2º ano de vigência do contrato.
+:::
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+premio5 <- (4300 * Axyn(tablex = tabua_mas, x = 45, tabley = tabua_fem, y = 40, n = 5, m = 5, status = 'last') / (1-0.012)) / axyn(tablex = tabua_mas, x = 45, tabley = tabua_fem, y = 40, n = 5, status = 'last', payment = 'advance')
+
+reserva5 <- 4300 * Axyn(tablex = tabua_mas, x = 47, tabley = tabua_fem, y = 42, n = 5, m = 3, status = 'last') - premio5 * axyn(tablex = tabua_mas, x = 47, tabley = tabua_fem, y = 42, n = 3, status = 'last', payment = 'advance')
+
+reserva5 <- format(reserva5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4)
+```
+**Resposta:**
+
+Considerando o cálculo do prêmio como:
+
+$$  P_{\overline{45;40}} = 4300 \cdot  \frac{{}_{5|}A^{1}_{\overline{45;40}:\overline{5|}}}{(1-0,012)} \cdot \frac{1}{ä_{\overline{45;40}:\overline{5|}}} $$
+
+E o cálculo da reserva matemática no 2º ano de vigência como:
+
+$$ {}_{2}V_{\overline{45:40}} = 4300 \cdot {}_{3}A^{1}_{\overline{47;42}:\overline{5|}} - P_{\overline{45;40}} \cdot ä_{\overline{47;42}:\overline{3|}}  $$
+
+**O valor da Reserva Matemática no 2º ano de vigência de contrato deverá ser de R$ `r reserva5`.**
