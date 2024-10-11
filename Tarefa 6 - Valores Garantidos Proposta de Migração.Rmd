@@ -1,0 +1,388 @@
+---
+title: "Matemática Atuarial II"
+subtitle: "Tarefa 6 - Valores Garantidos - Proposta de Migração"
+author: "Cleo Decker Anacleto & Brenda Morais de Almeida"
+date: "`r Sys.Date()`"
+output:
+  word_document: 
+    toc: yes
+  pdf_document:
+    toc: yes
+  html_document: 
+    highlight: zenburn
+    theme: paper
+    number_sections: false
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    df_print: default
+always_allow_html: true
+knitr:
+  opts_chunk:
+    screenshot.force: FALSE
+---
+
+```{css, echo=FALSE}
+.page-break {
+  page-break-before: always;
+  width: 100%;
+}
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Procedimentos Preliminares
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())               # limpa os objetos da ultima execução
+options(scipen = 9999,      # inibe exibição de resultaos em notação científica
+        digits = 8,         # limita o número de digitos das saídas do programa
+        max.print = 20)     # limita o tamanho da saída do programa
+
+library(lifecontingencies)  # pacote com operações financeiras e atuariais
+library(magrittr)           # pacote com operadores semânticos %>%, %$%
+library(kableExtra)         # pacote para formatar tabelas
+library(readxl)             # pacote para ler e manipular arquivos xlsx
+library(ggplot2)            # pacote para elaboração de gráficos
+library(MortalityTables)    # pacote para manipulação de tábuas biométricas
+```
+
+# Tábuas Biométricas
+
+Considerando a tábua BR-EMS 2021mt-v.2021 feminina e masculina e i = 5,27 % a.a.
+
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+setwd("C:/Users/cleod/OneDrive/Documentos/Documentos/Estudos/Ciências Atuariais/Matemática Atuarial II")
+
+tabuas <- read_excel('Tábuas.xlsx')
+
+tabua_mas <- tabuas[, c("Idade", "BR-EMSmt-v.2021-m")]
+names(tabua_mas) <- c("x", "qx")
+tabua_fem <- tabuas[, c("Idade", "BR-EMSmt-v.2021-f")]
+names(tabua_fem) <- c("y", "qy")
+```
+
+```{r}
+tabua_mas <- probs2lifetable(probs = tabua_mas$qx, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-m')
+tabua_mas <- new('actuarialtable', x = tabua_mas@x, lx = tabua_mas@lx, interest = 0.0527, name = 'BR-EMSmt-v.2021-m')
+print(tabua_mas)
+
+tabua_fem <- probs2lifetable(probs = tabua_fem$qy, type = 'qx', radix = 100000, name = 'BR-EMSmt-v.2021-f')
+tabua_fem <- new('actuarialtable', x = tabua_fem@x, lx = tabua_fem@lx, interest = 0.0527, name = 'BR-EMSmt-v.2021-f')
+print(tabua_fem)
+```
+
+# Instruções
+::: {style="text-align: justify;"}
+O presente trabalho (realizado em grupo, até três integrantes, com valor de 6,00) tem como objetivo simular o cálculo envolvido em uma proposta em andamento para a migração de um plano de benefícios do fundo de pensão JP. A proposta em questão diz respeito à solicitação de migração de uma participante aposentada de 60 anos, que, em caso de seu falecimento, tem como beneficiário seu filho de 15 anos. Atualmente, ela está inscrita no Plano JP-BD e busca migrar para o Plano JP-CD. Abaixo, destacam-se as seguintes observações:
+
+- A Reserva de migração individual da participante na data de referência é de R$
+1.453.699,88.
+
+- O valor de Benefício JP-BD da participante mensal na data de referência é de R$
+14.766,58.
+
+- A partir do momento da migração, a participante assistida pode optar por realizar um
+saque único de até 15% do saldo da conta de benefício concedido, ou optar por não fazê-
+lo.
+
+- O saldo remanescente da conta de benefício concedido será transformado em benefício
+mensal, de acordo com a modalidade de recebimento escolhida pelo participante: prazo
+indeterminado, prazo determinado (10, 20 ou 45 anos) ou percentual do saldo da conta
+individual (0,2%, 0,5% ou 1%).
+:::
+
+# Premissas
+::: {style="text-align: justify;"}
+- Tábua de mortalidade: BR-EMSmt-v.2021 (masculina e feminina)
+
+- Taxa de juros atuarial: 5,27% a.a.
+
+- Taxa de contribuição mensal: inativa 3% a.a.
+
+- Data de referência: 31/12/2021
+
+- O pagamento de benefícios ocorre 13 vezes por ano.
+
+- O benefício de pensão em caso de morte da participante é concedido ao filho até
+completar 21 anos, sendo 70% do valor do benefício do participante.
+
+- As premissas são iguais às da avaliação atuarial na data de referência do plano de origem (JP-BD).
+
+- Os valores das simulações contemplam apenas benefício a ser pago pelo fundo de pensão
+JP, excluindo qualquer benefício de previdência oficial.
+:::
+
+# Entrega
+::: {style="text-align: justify;"}
+O trabalho deve ser elaborado em formato de relatório (word) e incluir o
+desenvolvimento no software R ou Excel como anexo.
+
+1) Estimativa da reserva de migração individual em 31/12/2022.
+
+2) Calcule os valores de Saque único da participante nas formas: Sem saque, 5%, 10% e 15% do saldo da conta de benefício concedido. O saldo da conta de benefício concedido é igual à reserva de migração (Reserva matemática no momento de migração, ou seja, em
+31/12/2022.).
+
+3) Elabore e compare cenários do valor de benefício mensal para cada uma das modalidades
+de recebimento previstas na proposta, considerando as diversas opções de saque.
+:::
+
+# Reserva ao final de 2022
+
+```{r}
+# Atribuição dos valores
+x  <- 60
+y <- 15
+idades <- c(60,15)
+tabuas <- list(tabua_fem, tabua_mas)
+benef <- 14766.58
+pens <- 0.7 * benef
+v_2021 <- 1453699.88
+k <- 12
+pgtos <- 13
+aliq <- 0.03
+v <- 1/1.0527
+a_60_1 <- axn(tabua_fem, x = x, n = 1, k = k, payment = 'advance')
+a_60.15_1 <- axn(tabua_mas, x = y, n = 1, k = k, payment = 'advance') - axyzn(tabuas, idades, n = 1, k = k, status = 'joint', payment = 'advance')
+
+# Cálculo da Reserva
+reserva_2022 <- (v_2021 + (benef * pgtos * aliq * a_60_1) - (benef * pgtos * a_60_1) - (pens * pgtos * a_60.15_1)) / (v * pxyzt(tabuas, idades, t = 1, status = 'joint'))
+
+# Visualização dos valores
+reserva <- paste("RS", format(reserva_2022, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+Para o cálculo da reserva na data de 31/12/2022, utilizamos a expressão por recorrência:
+
+$$ {}_{1}V_{60|15} = \frac{1.453.699,88 + 13 \cdot 0,03 \cdot 14.766,58 \cdot ä^{(12)}_{60:\overline{1|}} - 13 \cdot 14.766,58 \cdot ä^{(12)}_{60:\overline{1|}} - 13 \cdot 0,7 \cdot 14.766,58 \cdot ä^{(12)}_{60|15:\overline{1|}}}{{}_{1}E_{60;15}} $$
+
+**Assim, o valor da Reserva Matemática para o final do ano de 2022 deverá ser de `r reserva`.**
+:::
+
+# Cenários de Saque
+
+```{r}
+# Atribuição de percentuais de saque
+perc_0 <- 0
+perc_5 <- 0.05
+perc_10 <- 0.1
+perc_15 <- 0.15
+
+# Cálculo dos saques
+saque_0 <- reserva_2022 * perc_0
+saque_5 <- reserva_2022 * perc_5
+saque_10 <- reserva_2022 * perc_10
+saque_15 <- reserva_2022 * perc_15
+
+# Saldos Remanescentes
+saldo_0 <- reserva_2022 - saque_0
+saldo_5 <- reserva_2022 - saque_5
+saldo_10 <- reserva_2022 - saque_10
+saldo_15 <- reserva_2022 - saque_15
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+A tabela a seguir demonstra os valores para as possibilidades de saque (sem saque, 5%, 10% ou 15%) e os saldos remanenescentes para a migração.
+
+```{r echo=FALSE}
+# Visualização dos valores
+saque_01 <- paste("RS", format(saque_0, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saque_02 <- paste("RS", format(saque_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saque_03 <- paste("RS", format(saque_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saque_04 <- paste("RS", format(saque_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saldo_01 <- paste("RS", format(saldo_0, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saldo_02 <- paste("RS", format(saldo_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saldo_03 <- paste("RS", format(saldo_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+saldo_04 <- paste("RS", format(saldo_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+# Tabela de Saques e Saldos Remanescentes
+tab_saques <- data.frame("Opções de Saque" = c("Sem saque", "Saque de 5%", "Saque de 10%", "Saque de 15%"),
+                         "Valor do Saque" = c(saque_01, saque_02, saque_03, saque_04),
+                         "Saldo Remanescente" = c(saldo_01, saldo_02, saldo_03, saldo_04))
+
+# Renomear as colunas
+colnames(tab_saques) <- c("Opções de Saque", "Valor do Saque", "Saldo Remanescente")
+
+# Gerar a tabela com kable
+kable(tab_saques, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::
+
+# Cenários do Novo Benefício
+
+```{r}
+## Cálculo dos novos benefícios
+
+# Opção sem saque
+# Vitalício
+idades_1 <- c(61,16)
+a_61 <- axn(tabua_fem, x = 61, k = k, payment = 'advance')
+a_61.16_5 <- axn(tabua_mas, x = 16, n = 5, k = k, payment = 'advance') - axyzn(tabuas, idades_1,n = 5, k = k, status = 'joint', payment = 'advance')
+benef_vit <- saldo_0 / (pgtos * (a_61 + 0.7 * a_61.16_5))
+# Temporário de 10 anos
+a_61_10 <- axn(tabua_fem, x = 61, n = 10, k = k, payment = 'advance')
+benef_t10 <- saldo_0 / (pgtos * (a_61_10 + 0.7 * a_61.16_5))
+
+# Temporário de 20 anos
+a_61_20 <- axn(tabua_fem, x = 61, n = 20, k = k, payment = 'advance')
+benef_t20 <- saldo_0 / (pgtos * (a_61_20 + 0.7 * a_61.16_5))
+
+# Temporário de 45 anos
+a_61_45 <- axn(tabua_fem, x = 61, n = 45, k = k, payment = 'advance')
+benef_t45 <- saldo_0 / (pgtos * (a_61_45 + 0.7 * a_61.16_5))
+
+# 0,2% sobre o saldo
+benef_0.2 <- saldo_0 * 0.002
+
+# 0,5% sobre o saldo
+benef_0.5 <- saldo_0 * 0.005
+
+# 1% sobre o saldo
+benef_1 <- saldo_0 * 0.01
+
+# Opção saque 5%
+# Vitalício
+benef_vit_5 <- saldo_5 / (13 *(a_61 + 0.7 * a_61.16_5))
+
+# Temporário de 10 anos
+benef_t10_5 <- saldo_5 / (13 * (a_61_10 + 0.7 * a_61.16_5))
+
+# Temporário de 20 anos
+benef_t20_5 <- saldo_5 / (13 * (a_61_20 + 0.7 * a_61.16_5))
+
+# Temporário de 45 anos
+benef_t45_5 <- saldo_5 / (13 * (a_61_45 + 0.7 * a_61.16_5))
+
+# 0,2% sobre o saldo
+benef_0.2_5 <- saldo_5 * 0.002
+
+# 0,5% sobre o saldo
+benef_0.5_5 <- saldo_5 * 0.005
+
+# 1% sobre o saldo
+benef_1_5 <- saldo_5 * 0.01
+
+# Opção saque 10%
+# Vitalício
+benef_vit_10 <- saldo_10 / (13 *(a_61 + 0.7 * a_61.16_5))
+
+# Temporário de 10 anos
+benef_t10_10 <- saldo_10 / (13 * (a_61_10 + 0.7 * a_61.16_5))
+
+# Temporário de 20 anos
+benef_t20_10 <- saldo_10 / (13 * (a_61_20 + 0.7 * a_61.16_5))
+
+# Temporário de 45 anos
+benef_t45_10 <- saldo_10 / (13 * (a_61_45 + 0.7 * a_61.16_5))
+
+# 0,2% sobre o saldo
+benef_0.2_10 <- saldo_10 * 0.002
+
+# 0,5% sobre o saldo
+benef_0.5_10 <- saldo_10 * 0.005
+
+# 1% sobre o saldo
+benef_1_10 <- saldo_10 * 0.01
+
+# Opção saque 15%
+# Vitalício
+benef_vit_15 <- saldo_15 / (13 *(a_61 + 0.7 * a_61.16_5))
+
+# Temporário de 10 anos
+benef_t10_15 <- saldo_15 / (13 * (a_61_10 + 0.7 * a_61.16_5))
+
+# Temporário de 20 anos
+benef_t20_15 <- saldo_15 / (13 * (a_61_20 + 0.7 * a_61.16_5))
+
+# Temporário de 45 anos
+benef_t45_15 <- saldo_15 / (13 * (a_61_45 + 0.7 * a_61.16_5))
+
+# 0,2% sobre o saldo
+benef_0.2_15 <- saldo_15 * 0.002
+
+# 0,5% sobre o saldo
+benef_0.5_15 <- saldo_15 * 0.005
+
+# 1% sobre o saldo
+benef_1_15 <- saldo_15 * 0.01
+```
+
+::: {style="text-align: justify;"}
+**Resposta:**
+
+A tabela a seguir demonstra os valores do novo benefício mensal conforme a opção de saque (sem saque, 5%, 10% ou 15%) e a modalidade de recebimento (vitalícia, temporária de 10, 20 ou 45 anos ou percentual do saldo da conta individual de 0,2%, 0,5% ou 1%).
+
+Para o cálculo do benefício nas modalidades de recebimento vitalícia ou temporária de 10, 20 ou 45 anos, utilizamos a seguinte formulação:
+
+$$  Benefício = \frac{{}_{1}V_{60|15} \cdot [1; 0,95; 0,90; 0,85]}{13 \cdot (ä^{(12)}_{61:?} + 0,7 \cdot ä^{(12)}_{61|16:\overline{5|}})} $$
+
+Por sua vez, para o cálculo do benefício na modalidade percentual do saldo em conta, foi utilizada a seguinte formulação:
+
+$$  Benefício = {}_{1}V_{60|15} \cdot [1; 0,95; 0,90; 0,85] \cdot [0,2\%; 0,5\%; 1\%] $$
+
+```{r echo=FALSE}
+# Visualização dos valores
+benef_vit <- paste("R$", format(benef_vit, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_vit_5 <- paste("R$", format(benef_vit_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_vit_10 <- paste("R$", format(benef_vit_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_vit_15 <- paste("R$", format(benef_vit_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+benef_t10 <- paste("R$", format(benef_t10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t10_5 <- paste("R$", format(benef_t10_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t10_10 <- paste("R$", format(benef_t10_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t10_15 <- paste("R$", format(benef_t10_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+benef_t20 <- paste("R$", format(benef_t20, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t20_5 <- paste("R$", format(benef_t20_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t20_10 <- paste("R$", format(benef_t20_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t20_15 <- paste("R$", format(benef_t20_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+benef_t45 <- paste("R$", format(benef_t45, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t45_5 <- paste("R$", format(benef_t45_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t45_10 <- paste("R$", format(benef_t45_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_t45_15 <- paste("R$", format(benef_t45_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+benef_0.2 <- paste("R$", format(benef_0.2, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_0.2_5 <- paste("R$", format(benef_0.2_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_0.2_10 <- paste("R$", format(benef_0.2_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_0.2_15 <- paste("R$", format(benef_0.2_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+benef_0.5 <- paste("R$", format(benef_0.5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_0.5_5 <- paste("R$", format(benef_0.5_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_0.5_10 <- paste("R$", format(benef_0.5_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_0.5_15 <- paste("R$", format(benef_0.5_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+benef_1 <- paste("R$", format(benef_1, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_1_5 <- paste("R$", format(benef_1_5, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_1_10 <- paste("R$", format(benef_1_10, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+benef_1_15 <- paste("R$", format(benef_1_15, decimal.mark = ",", big.mark = ".", nsmall = 2, digits = 4))
+
+
+# Tabela de Saques e Saldos Remanescentes
+tab_benef <- data.frame(
+  "Opções de Benefício" = c("Valor do Saque", "Vitalício", "Temporário de 10 anos", "Temporário de 20 anos", "Temporário de 45 anos", "0,2% do saldo", "0,5% do saldo", "1% do saldo"),
+  "Sem saque" = c(saque_01, benef_vit, benef_t10, benef_t20, benef_t45, benef_0.2, benef_0.5, benef_1),
+  "Saque_5" = c(saque_02, benef_vit_5, benef_t10_5, benef_t20_5, benef_t45_5, benef_0.2_5, benef_0.5_5, benef_1_5),
+  "Saque_10" = c(saque_03, benef_vit_10, benef_t10_10, benef_t20_10, benef_t45_10, benef_0.2_10, benef_0.5_10, benef_1_10),
+  "Saque_15" = c(saque_04, benef_vit_15, benef_t10_15, benef_t20_15, benef_t45_15, benef_0.2_15, benef_0.5_15, benef_1_15)
+)
+
+# Renomear as colunas
+colnames(tab_benef) <- c("Opções de Benefício", "Sem Saque", "Saque de 5%", "Saque de 10%", "Saque de 15%")
+
+# Gerar a tabela com kable
+kable(tab_benef, format = "html", escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+:::
